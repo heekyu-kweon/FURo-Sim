@@ -64,12 +64,23 @@ if [ "$(uname)" == "Darwin" ]; then
     export CXX="$(brew --prefix)/opt/llvm/bin/clang++"
 else
     if $gcc; then
-        export CC="gcc-12"
-        export CXX="g++-12"
+        export CC="gcc"
+        export CXX="g++"
     else
-        export CC="clang-12"
-        export CXX="clang++-12"
+        CLANG_VER="${FUROSIM_CLANG_VERSION:-}"
+        if [ -z "$CLANG_VER" ]; then
+            for v in 19 18 17 16 15 14 13 12; do
+                if command -v "clang++-$v" >/dev/null 2>&1; then CLANG_VER=$v; break; fi
+            done
+        fi
+        if [ -z "$CLANG_VER" ]; then
+            echo "### clang++-12 or newer not found. Run setup.sh first." >&2
+            exit 1
+        fi
+        export CC="clang-$CLANG_VER"
+        export CXX="clang++-$CLANG_VER"
     fi
+    echo "compiler: $CXX"
 fi
 
 #install EIGEN library

@@ -125,6 +125,9 @@ IF NOT EXIST external\rpclib\%RPC_VERSION_FOLDER% (
     ECHO(
 )
 
+REM // VS 2026 STL removed stdext::checked_array_iterator, which the fmt bundled in rpclib uses when _SECURE_SCL is on (Debug)
+%powershell% -command "$f = 'external\rpclib\%RPC_VERSION_FOLDER%\dependencies\include\format.h'; (Get-Content $f) -replace '^# define FMT_SECURE_SCL _SECURE_SCL', '# define FMT_SECURE_SCL 0' | Set-Content $f"
+
 REM //---------- Build rpclib ------------
 IF NOT EXIST external\rpclib\%RPC_VERSION_FOLDER%\build mkdir external\rpclib\%RPC_VERSION_FOLDER%\build
 cd external\rpclib\%RPC_VERSION_FOLDER%\build
@@ -136,14 +139,17 @@ ECHO(
 if %buildMode% == "" (
     CALL :printHeader, "Building rpclib - Configuration = Release"
     cmake --build . --config Release
+    if ERRORLEVEL 1 goto :buildfailed
     ECHO(
 
     CALL :printHeader, "Building rpclib - Configuration = Debug"
     cmake --build . --config Debug
+    if ERRORLEVEL 1 goto :buildfailed
     ECHO(
 
     CALL :printHeader, "Building rpclib - Configuration = RelWithDebInfo"
     cmake --build . --config RelWithDebInfo
+    if ERRORLEVEL 1 goto :buildfailed
     ECHO(
 ) else (
     CALL :printHeader, "Building rpclib - Configuration = %buildModeName%"
@@ -281,7 +287,7 @@ FOR /D %%E IN (Unreal\Environments\*) DO (
 
 :done
 REM //---------- done building ----------
-CALL :printHeader, "AirLib built: AirLib\lib, AirLib\deps (rpclib, MavLinkCom), HelloAuv\x64"
+CALL :printHeader, "AirLib built: AirLib\lib, AirLib\deps, HelloAuv\build\x64"
 exit /b 0
 
 :buildfailed

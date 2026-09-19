@@ -62,15 +62,30 @@ else #linux
         libvulkan1 \
         $VULKAN_PKG
 
-    #install clang and build tools
-    VERSION=$(lsb_release -rs | cut -d. -f1)
-    # Since Ubuntu 17 clang is part of the core repository
-    # See https://packages.ubuntu.com/search?keywords=clang-8
-    if [ "$VERSION" -lt "17" ]; then
-        wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        sudo apt-get update
+    # clang: use an installed clang++-N if there is one, otherwise the distro's default clang
+    # (20.04: 12, 22.04: 14, 24.04: 18); FUROSIM_CLANG_VERSION=N overrides
+    CLANG_VER="${FUROSIM_CLANG_VERSION:-}"
+    if [ -z "$CLANG_VER" ]; then
+        for v in 19 18 17 16 15 14 13 12; do
+            if command -v "clang++-$v" >/dev/null 2>&1; then CLANG_VER=$v; break; fi
+        done
     fi
-    sudo apt-get install -y clang-12 clang++-12 libc++-12-dev libc++abi-12-dev libunwind-dev
+    if [ -z "$CLANG_VER" ]; then
+        DEFAULT_CLANG=$(apt-cache policy clang | awk '/Candidate/{print $2}' | sed 's/^[0-9]*://; s/[.-].*//')
+        if [ -n "$DEFAULT_CLANG" ] && [ "$DEFAULT_CLANG" -ge 12 ] && apt-cache show "clang-$DEFAULT_CLANG" >/dev/null 2>&1; then
+            CLANG_VER=$DEFAULT_CLANG
+        else
+            for v in 18 17 16 15 14 13 12; do
+                if apt-cache show "clang-$v" >/dev/null 2>&1; then CLANG_VER=$v; break; fi
+            done
+        fi
+    fi
+    if [ -z "$CLANG_VER" ]; then
+        echo "No clang-12 or newer package found for this Ubuntu release." >&2
+        exit 1
+    fi
+    echo "Installing clang-$CLANG_VER"
+    sudo apt-get install -y "clang-$CLANG_VER"
 fi
 
 if ! which cmake; then
