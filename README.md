@@ -152,8 +152,8 @@ The wrappers connect to the simulator on `localhost:41451` by default.
 
 We recommend using **Windows + WSL (Windows Subsystem for Linux)** as the development environment:
 
-- **Windows**: Run the Unreal Engine 5.4 simulator binary (FURoSimDemo.exe)
-- **WSL (Ubuntu 20.04 / 22.04)**: Use the Python client, ROS/ROS2 packages, and build AirLib from source
+- **Windows**: Run the Unreal Engine 5.8 simulator binary (FURoSimDemo.exe)
+- **WSL (Ubuntu 20.04 / 22.04 / 24.04)**: Use the Python client, ROS/ROS2 packages, and build AirLib from source
 
 This combination allows you to run the simulator on Windows while leveraging Linux tooling for development and ROS integration.
 
