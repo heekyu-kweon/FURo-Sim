@@ -22,8 +22,12 @@ STRICT_MODE_OFF //todo what does this do?
 #include <furosim_ros_pkgs/GimbalAngleEulerCmd.h>
 #include <furosim_ros_pkgs/GimbalAngleQuatCmd.h>
 #include <furosim_ros_pkgs/GPSYaw.h>
+#include <furosim_ros_pkgs/Hover.h>
 #include <furosim_ros_pkgs/Land.h>
 #include <furosim_ros_pkgs/LandGroup.h>
+#include <furosim_ros_pkgs/MoveOnPath.h>
+#include <furosim_ros_pkgs/MoveToPosition.h>
+#include <furosim_ros_pkgs/MoveToZ.h>
 #include <furosim_ros_pkgs/Reset.h>
 #include <furosim_ros_pkgs/Takeoff.h>
 #include <furosim_ros_pkgs/TakeoffGroup.h>
@@ -236,7 +240,13 @@ private:
         ros::Subscriber auv_cmd_sub;
         ros::Subscriber ocean_current_sub;
 
+        ros::ServiceServer move_to_position_srvr;
+        ros::ServiceServer move_on_path_srvr;
+        ros::ServiceServer move_to_z_srvr;
+        ros::ServiceServer hover_srvr;
+
         bool has_force_cmd;
+        bool force_cmd_streaming = false;
         ForceCmd force_cmd;
     };
 
@@ -285,6 +295,10 @@ private:
     void car_cmd_cb(const furosim_ros_pkgs::CarControls::ConstPtr& msg, const std::string& vehicle_name);
     void auv_cmd_cb(const furosim_ros_pkgs::VelCmd::ConstPtr& msg, const std::string& vehicle_name);
     void ocean_current_cb(const geometry_msgs::Vector3Stamped::ConstPtr& msg, const std::string& vehicle_name);
+    bool auv_move_to_position_srv_cb(furosim_ros_pkgs::MoveToPosition::Request& request, furosim_ros_pkgs::MoveToPosition::Response& response, const std::string& vehicle_name);
+    bool auv_move_on_path_srv_cb(furosim_ros_pkgs::MoveOnPath::Request& request, furosim_ros_pkgs::MoveOnPath::Response& response, const std::string& vehicle_name);
+    bool auv_move_to_z_srv_cb(furosim_ros_pkgs::MoveToZ::Request& request, furosim_ros_pkgs::MoveToZ::Response& response, const std::string& vehicle_name);
+    bool auv_hover_srv_cb(furosim_ros_pkgs::Hover::Request& request, furosim_ros_pkgs::Hover::Response& response, const std::string& vehicle_name);
     void update_commands();
 
     // state, returns the simulation timestamp best guess based on drone state timestamp, airsim needs to return timestap for environment

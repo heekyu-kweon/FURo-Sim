@@ -1,6 +1,7 @@
 {
   "SettingsVersion": 1.2,
   "SimMode": "Auv",
+  "ClockType": "UnrealClock",
   "Vehicles": {
     "AuvSimple_1": {
       "VehicleType": "AuvSimple",

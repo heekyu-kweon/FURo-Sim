@@ -107,6 +107,12 @@ namespace airlib
             setOutput(output);
         }
 
+    public:
+        virtual Pose getRelativePose() const override
+        {
+            return params_.relative_pose;
+        }
+
     private:
         LidarSimpleParams params_;
         vector<real_T> point_cloud_;

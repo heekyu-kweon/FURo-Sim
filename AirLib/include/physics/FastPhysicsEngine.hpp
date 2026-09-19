@@ -219,7 +219,7 @@ namespace airlib
             //TODO: implement better rolling friction
             next.twist.angular *= 0.9f;
 
-            // there is no acceleration during collision response, this is a hack, but without it the acceleration cancels
+            // acceleration is intentionally zeroed during collision response - without this the acceleration cancels
             // the computed impulse response too much and stops the vehicle from bouncing off the collided object.
             next.accelerations.linear = Vector3r::Zero();
             next.accelerations.angular = Vector3r::Zero();

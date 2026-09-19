@@ -497,6 +497,12 @@
     <ClCompile Include="src\vehicles\asv\api\AsvRpcLibServer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\vehicles\auv\api\AuvRpcLibClient.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vehicles\auv\api\AuvRpcLibServer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\vehicles\multirotor\api\MultirotorRpcLibClient.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

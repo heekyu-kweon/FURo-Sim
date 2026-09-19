@@ -19,6 +19,14 @@ namespace airlib
             : AsvApiBase(vehicle_setting, sensor_factory, state, environment), home_geopoint_(environment.getHomeGeoPoint())
         {
             params_.surface_constrained = vehicle_setting->surface_constrained;
+            params_.surface_constrained_auto = vehicle_setting->surface_constrained_auto;
+            params_.hull_buoyancy = vehicle_setting->hull_buoyancy;
+            params_.draw_debug_buoyancy = vehicle_setting->draw_debug_buoyancy;
+            if (!std::isnan(vehicle_setting->mass))
+                params_.mass = vehicle_setting->mass;
+            for (int i = 0; i < 3; ++i)
+                if (!std::isnan(vehicle_setting->center_of_gravity[i]))
+                    params_.center_of_gravity[i] = vehicle_setting->center_of_gravity[i];
         }
 
         ~AsvSimpleApi()

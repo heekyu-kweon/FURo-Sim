@@ -125,28 +125,18 @@ cp $build_dir/output/lib/librpc.a AirLib/deps/rpclib/lib/librpc.a
 rsync -a --delete $build_dir/output/lib/ AirLib/lib/x64/$folder_name
 rsync -a --delete external/rpclib/$RPC_VERSION_FOLDER/include AirLib/deps/rpclib
 rsync -a --delete MavLinkCom/include AirLib/deps/MavLinkCom
-rsync -a --delete AirLib Unreal/Plugins/AirSim/Source
-rm -rf Unreal/Plugins/AirSim/Source/AirLib/src
-
-# Update all environment projects
-# for d in Unreal/Environments/* ; do
-#     [ -L "${d%/}" ] && continue
-#     $d/clean.sh
-#     mkdir -p $d/Plugins
-#     rsync -a --delete Unreal/Plugins/AirSim $d/Plugins
-# done
+if [ -d Unreal/Plugins/FURoSim/Source ]; then
+    rsync -a --delete AirLib Unreal/Plugins/FURoSim/Source
+    rm -rf Unreal/Plugins/FURoSim/Source/AirLib/src
+fi
 
 set +x
 
 echo ""
 echo ""
 echo "=================================================================="
-echo " AirSim plugin is built! Here's how to build Unreal project."
-echo "=================================================================="
-echo "All environments under Unreal/Environments have been updated."
-echo ""
-echo "For further info see:"
-echo "https://github.com/Microsoft/AirSim/blob/master/docs/build_linux.md"
+echo " AirLib is built: AirLib/lib, AirLib/deps (rpclib, MavLinkCom)."
+echo " The C++ example (HelloAuv) and the ROS/ROS2 wrappers link against it."
 echo "=================================================================="
 
 popd >/dev/null

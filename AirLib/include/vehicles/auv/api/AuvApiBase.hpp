@@ -13,6 +13,8 @@
 #include "sensors/SensorBase.hpp"
 #include "sensors/SensorCollection.hpp"
 #include "sensors/SensorFactory.hpp"
+#include "common/CancelToken.hpp"
+#include "vehicles/multirotor/api/MultirotorCommon.hpp"
 
 namespace msr
 {
@@ -24,7 +26,7 @@ namespace airlib
     public:
         struct AuvControls
         {
-            Wrench wrench = Wrench::zero();  // body-frame [N] / [N·m]
+            Wrench wrench = Wrench::zero();  // body-frame [N] / [N.m]
 
             AuvControls() {}
             AuvControls(const Vector3r& force, const Vector3r& torque)
@@ -61,7 +63,55 @@ namespace airlib
     
     public:
         /************************* high level move APIs *********************************/
-        // virtual bool moveOnRecordedTrajectory(const vector<Pose>& trajectory, const vector<TTimePoint>& time_stamps);
+        // Waypoints and z are NED [m], velocity is the surge speed cap [m/s]. Blocking: returns true on
+        // arrival, false on timeout or cancel (cancelLastTask / a newer move call). The vehicle holds
+        // station where it ends up. yaw_mode.is_rate=true means face the direction of travel;
+        // is_rate=false holds the absolute heading yaw_or_rate [deg].
+        virtual bool moveToPosition(float x, float y, float z, float velocity, float timeout_sec, const YawMode& yaw_mode) = 0;
+        virtual bool moveOnPath(const vector<Vector3r>& path, float velocity, float timeout_sec, const YawMode& yaw_mode) = 0;
+        virtual bool moveToZ(float z, float velocity, float timeout_sec, const YawMode& yaw_mode) = 0;
+        virtual bool hover() = 0;
+
+        virtual void cancelLastTask() override
+        {
+            token_.cancel();
+        }
+
+        CancelToken& getCancelToken()
+        {
+            return token_;
+        }
+
+    protected:
+        // Serializes move calls the same way MultirotorApiBase::SingleTaskCall does: a new call cancels the
+        // one in flight and waits for it to unwind before taking over, so the older call's cleanup can never
+        // overwrite the newer task.
+        class SingleTaskCall
+        {
+        public:
+            SingleTaskCall(AuvApiBase* api)
+                : api_(api)
+            {
+                auto& token = api_->getCancelToken();
+                if (!token.try_lock()) {
+                    token.cancel();
+                    token.lock();
+                }
+                if (token.getRecursionCount() == 1)
+                    token.reset();
+            }
+
+            ~SingleTaskCall()
+            {
+                auto& token = api_->getCancelToken();
+                if (token.getRecursionCount() == 1)
+                    token.reset();
+                token.unlock();
+            }
+
+        private:
+            AuvApiBase* api_;
+        };
 
     public:
         // TODO: Temporary constructor for the Unity implementation which does not use the new Sensor Configuration Settings implementation.
@@ -143,7 +193,7 @@ namespace airlib
         }
     
     private: //variables
-        // ThrusterStates thruster_states_;
+        CancelToken token_;
     };
 }
 } //namespace

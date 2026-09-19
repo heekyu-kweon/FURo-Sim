@@ -1,0 +1,10 @@
+# AUV: follow NED waypoints in order and hold station at the last one (AuvClient.moveOnPathAsync).
+geometry_msgs/Point[] path
+float64 velocity        # surge speed cap [m/s]
+float64 timeout_sec     # <= 0: no timeout
+bool yaw_fixed          # false: face the direction of travel; true: hold yaw_deg
+float64 yaw_deg
+bool wait_on_last_task  # true: block until arrival/timeout and report it in success
+---
+bool success
+string message

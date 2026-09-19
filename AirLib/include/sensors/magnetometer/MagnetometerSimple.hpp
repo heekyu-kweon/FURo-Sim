@@ -102,6 +102,12 @@ namespace airlib
             return output;
         }
 
+    public:
+        virtual Pose getRelativePose() const override
+        {
+            return params_.relative_pose;
+        }
+
     private:
         RandomVectorGaussianR noise_vec_;
         Vector3r bias_vec_;

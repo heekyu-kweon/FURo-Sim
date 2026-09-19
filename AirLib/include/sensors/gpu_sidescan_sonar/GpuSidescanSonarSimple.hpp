@@ -133,6 +133,12 @@ namespace airlib
             setOutput(output);
         }
 
+    public:
+        virtual Pose getRelativePose() const override
+        {
+            return params_.relative_pose;
+        }
+
     private:
         GpuSidescanSonarSimpleParams params_;
         vector<real_T> port_raw_data_;

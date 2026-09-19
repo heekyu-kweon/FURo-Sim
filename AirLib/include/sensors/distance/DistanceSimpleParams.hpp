@@ -67,7 +67,8 @@ namespace airlib
             if (std::isnan(relative_pose.position.y()))
                 relative_pose.position.y() = 0;
             if (std::isnan(relative_pose.position.z())) {
-                if (simmode_name == AirSimSettings::kSimModeTypeMultirotor)
+                if (simmode_name == AirSimSettings::kSimModeTypeMultirotor ||
+                    simmode_name == AirSimSettings::kSimModeTypeAuv)
                     relative_pose.position.z() = 0;
                 else
                     relative_pose.position.z() = -1; // a little bit above for cars

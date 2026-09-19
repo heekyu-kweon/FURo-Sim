@@ -22,10 +22,31 @@ namespace airlib_rpclib
     class AuvRpcLibAdaptors : public RpcLibAdaptorsBase
     {
     public:
+        struct YawMode
+        {
+            bool is_rate = true;
+            float yaw_or_rate = 0;
+            MSGPACK_DEFINE_ARRAY(is_rate, yaw_or_rate);
+
+            YawMode()
+            {
+            }
+
+            YawMode(const msr::airlib::YawMode& s)
+            {
+                is_rate = s.is_rate;
+                yaw_or_rate = s.yaw_or_rate;
+            }
+            msr::airlib::YawMode to() const
+            {
+                return msr::airlib::YawMode(is_rate, yaw_or_rate);
+            }
+        };
+
         struct AuvControls
         {
             Vector3r force;   // body-frame force  [N]
-            Vector3r torque;  // body-frame torque [N·m]
+            Vector3r torque;  // body-frame torque [N.m]
 
             MSGPACK_DEFINE_ARRAY(force, torque);
 

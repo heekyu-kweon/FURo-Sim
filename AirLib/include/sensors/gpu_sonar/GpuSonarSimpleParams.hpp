@@ -49,6 +49,8 @@ namespace airlib
         BeamPatternType beam_pattern_type = BeamPatternType::DIDSON;
 
         bool draw_debug_points = false;
+        bool draw_beam = false;
+        bool draw_fov = false;
         bool open_sonar_viewer = true; // whether to open sonar viewer window
         // Anamorphic render: render target width = number_of_beams * horizontal_render_scale.
         // scale=1 = pure anamorphic (min GPU). Raise (e.g. 2, 4, 8) if post-process / LOD / SSAO artifacts appear.
@@ -59,6 +61,14 @@ namespace airlib
         bool enable_rayleigh_noise = true;
         bool enable_range_noise = true;
         bool enable_azimuth_angle_noise = true;
+        bool enable_first_order_diffuse = true; // true=Lambertian first-order, false=second-order (intensity squared)
+        // Multiplicative speckle: I' = I * X, X ~ Gamma(shape, scale). With E[X]=shape*scale=1 the
+        // sample is mean-preserving; CV = 1/sqrt(shape). Default (25, 0.04) gives CV=0.2 to match
+        // DIDSON-2 fan measurement (paper_revision_2026_05_24/cv_results.csv).
+        bool enable_speckle_multiplicative = false;
+        real_T speckle_shape = 25.0f;
+        real_T speckle_scale = 0.04f;
+        bool enable_semantic_and_pointcloud = true; // false = skip segmentation pass + pointcloud array build (sonar image only)
         AirSimSettings::GpuSonarSetting::DataFrame data_frame;
 
         bool external_controller = true;
@@ -82,6 +92,8 @@ namespace airlib
             max_bounce_ray = settings_json.getInt("MaxBounceRay", max_bounce_ray);
             max_diffuse_ray_num = settings_json.getInt("MaxDiffuseRayNum", max_diffuse_ray_num);
             draw_debug_points = settings_json.getBool("DrawDebugPoints", draw_debug_points);
+            draw_beam = settings_json.getBool("DrawDebugBeam", settings_json.getBool("DrawBeam", draw_beam));
+            draw_fov = settings_json.getBool("DrawDebugFov", settings_json.getBool("DrawFovGizmo", draw_fov));
             open_sonar_viewer = settings_json.getBool("OpenSonarViewer", open_sonar_viewer);
             horizontal_render_scale = std::max(1, settings_json.getInt("HorizontalRenderScale", static_cast<int>(horizontal_render_scale)));
             enable_beam_pattern = settings_json.getBool("EnableBeamPattern", enable_beam_pattern);
@@ -102,6 +114,11 @@ namespace airlib
             range_noise_sigma = settings_json.getFloat("RangeNoiseSigma", range_noise_sigma);
             enable_azimuth_angle_noise = settings_json.getBool("EnableAzimuthAngleNoise", enable_azimuth_angle_noise);
             azimuth_angle_noise_sigma = settings_json.getFloat("AzimuthAngleNoiseSigma", azimuth_angle_noise_sigma);
+            enable_first_order_diffuse = settings_json.getBool("EnableFirstOrderDiffuse", enable_first_order_diffuse);
+            enable_speckle_multiplicative = settings_json.getBool("EnableSpeckleMultiplicative", enable_speckle_multiplicative);
+            speckle_shape = settings_json.getFloat("SpeckleShape", speckle_shape);
+            speckle_scale = settings_json.getFloat("SpeckleScale", speckle_scale);
+            enable_semantic_and_pointcloud = settings_json.getBool("EnableSemanticAndPointCloud", enable_semantic_and_pointcloud);
             std::string frame = settings_json.getString("DataFrame", AirSimSettings::kVehicleInertialFrame);
             if (frame == AirSimSettings::kVehicleInertialFrame) {
                 data_frame = AirSimSettings::GpuSonarSetting::DataFrame::VehicleInertialFrame;
@@ -125,7 +142,8 @@ namespace airlib
             if (std::isnan(relative_pose.position.y()))
                 relative_pose.position.y() = 0;
             if (std::isnan(relative_pose.position.z())) {
-                if (simmode_name == AirSimSettings::kSimModeTypeMultirotor)
+                if (simmode_name == AirSimSettings::kSimModeTypeMultirotor ||
+                    simmode_name == AirSimSettings::kSimModeTypeAuv)
                     relative_pose.position.z() = 0;
                 else
                     relative_pose.position.z() = -1; // a little bit above for cars

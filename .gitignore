@@ -21,3 +21,13 @@ build_debug/
 AirLib/deps/
 AirLib/lib/
 external/
+
+# Unreal Engine build artifacts (for the plugin/environment projects, once released)
+Binaries/
+Build/
+Intermediate/
+Saved/
+DerivedDataCache/
+.vs/
+*.sln
+!FURoSim.sln

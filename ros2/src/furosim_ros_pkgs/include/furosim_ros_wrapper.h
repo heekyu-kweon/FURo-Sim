@@ -21,8 +21,12 @@ STRICT_MODE_OFF //todo what does this do?
 #include <furosim_interfaces/msg/gimbal_angle_euler_cmd.hpp>
 #include <furosim_interfaces/msg/gimbal_angle_quat_cmd.hpp>
 #include <furosim_interfaces/msg/gps_yaw.hpp>
+#include <furosim_interfaces/srv/hover.hpp>
 #include <furosim_interfaces/srv/land.hpp>
 #include <furosim_interfaces/srv/land_group.hpp>
+#include <furosim_interfaces/srv/move_on_path.hpp>
+#include <furosim_interfaces/srv/move_to_position.hpp>
+#include <furosim_interfaces/srv/move_to_z.hpp>
 #include <furosim_interfaces/srv/reset.hpp>
 #include <furosim_interfaces/srv/takeoff.hpp>
 #include <furosim_interfaces/srv/takeoff_group.hpp>
@@ -34,7 +38,11 @@ STRICT_MODE_OFF //todo what does this do?
 #include <furosim_interfaces/msg/dvl.hpp>
 #include <furosim_interfaces/msg/pressure.hpp>
 #include <chrono>
+#if __has_include(<cv_bridge/cv_bridge.hpp>)
+#include <cv_bridge/cv_bridge.hpp>
+#else
 #include <cv_bridge/cv_bridge.h>
+#endif
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
@@ -60,7 +68,11 @@ STRICT_MODE_OFF //todo what does this do?
 #include <std_srvs/srv/empty.hpp>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
+#if __has_include(<tf2_geometry_msgs/tf2_geometry_msgs.hpp>)
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#else
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#endif
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -223,7 +235,13 @@ private:
         rclcpp::Subscription<furosim_interfaces::msg::VelCmd>::SharedPtr auv_cmd_sub_;
         rclcpp::Subscription<geometry_msgs::msg::Vector3Stamped>::SharedPtr ocean_current_sub_;
 
+        rclcpp::Service<furosim_interfaces::srv::MoveToPosition>::SharedPtr move_to_position_srvr_;
+        rclcpp::Service<furosim_interfaces::srv::MoveOnPath>::SharedPtr move_on_path_srvr_;
+        rclcpp::Service<furosim_interfaces::srv::MoveToZ>::SharedPtr move_to_z_srvr_;
+        rclcpp::Service<furosim_interfaces::srv::Hover>::SharedPtr hover_srvr_;
+
         bool has_force_cmd_;
+        bool force_cmd_streaming_ = false;
         ForceCmd force_cmd_;
     };
 
@@ -251,6 +269,10 @@ private:
     void car_cmd_cb(const furosim_interfaces::msg::CarControls::SharedPtr msg, const std::string& vehicle_name);
     void auv_cmd_cb(const furosim_interfaces::msg::VelCmd::SharedPtr msg, const std::string& vehicle_name);
     void ocean_current_cb(const geometry_msgs::msg::Vector3Stamped::SharedPtr msg, const std::string& vehicle_name);
+    bool auv_move_to_position_srv_cb(const std::shared_ptr<furosim_interfaces::srv::MoveToPosition::Request> request, const std::shared_ptr<furosim_interfaces::srv::MoveToPosition::Response> response, const std::string& vehicle_name);
+    bool auv_move_on_path_srv_cb(const std::shared_ptr<furosim_interfaces::srv::MoveOnPath::Request> request, const std::shared_ptr<furosim_interfaces::srv::MoveOnPath::Response> response, const std::string& vehicle_name);
+    bool auv_move_to_z_srv_cb(const std::shared_ptr<furosim_interfaces::srv::MoveToZ::Request> request, const std::shared_ptr<furosim_interfaces::srv::MoveToZ::Response> response, const std::string& vehicle_name);
+    bool auv_hover_srv_cb(const std::shared_ptr<furosim_interfaces::srv::Hover::Request> request, const std::shared_ptr<furosim_interfaces::srv::Hover::Response> response, const std::string& vehicle_name);
     void update_commands();
 
     rclcpp::Time update_state();

@@ -1,0 +1,41 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AirLib", "AirLib\AirLib.vcxproj", "{4BFB7231-077A-4671-BD21-D3ADE3EA36E7}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MavLinkCom", "MavLinkCom\MavLinkCom.vcxproj", "{8510C7A4-BF63-41D2-94F6-D8731D137A5A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HelloAuv", "HelloAuv\HelloAuv.vcxproj", "{B7F9E0A2-3C4D-4E5F-9A1B-2C3D4E5F6789}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+		RelWithDebInfo|x64 = RelWithDebInfo|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4BFB7231-077A-4671-BD21-D3ADE3EA36E7}.Debug|x64.ActiveCfg = Debug|x64
+		{4BFB7231-077A-4671-BD21-D3ADE3EA36E7}.Debug|x64.Build.0 = Debug|x64
+		{4BFB7231-077A-4671-BD21-D3ADE3EA36E7}.Release|x64.ActiveCfg = Release|x64
+		{4BFB7231-077A-4671-BD21-D3ADE3EA36E7}.Release|x64.Build.0 = Release|x64
+		{4BFB7231-077A-4671-BD21-D3ADE3EA36E7}.RelWithDebInfo|x64.ActiveCfg = RelWithDebInfo|x64
+		{4BFB7231-077A-4671-BD21-D3ADE3EA36E7}.RelWithDebInfo|x64.Build.0 = RelWithDebInfo|x64
+		{8510C7A4-BF63-41D2-94F6-D8731D137A5A}.Debug|x64.ActiveCfg = Debug|x64
+		{8510C7A4-BF63-41D2-94F6-D8731D137A5A}.Debug|x64.Build.0 = Debug|x64
+		{8510C7A4-BF63-41D2-94F6-D8731D137A5A}.Release|x64.ActiveCfg = Release|x64
+		{8510C7A4-BF63-41D2-94F6-D8731D137A5A}.Release|x64.Build.0 = Release|x64
+		{8510C7A4-BF63-41D2-94F6-D8731D137A5A}.RelWithDebInfo|x64.ActiveCfg = RelWithDebInfo|x64
+		{8510C7A4-BF63-41D2-94F6-D8731D137A5A}.RelWithDebInfo|x64.Build.0 = RelWithDebInfo|x64
+		{B7F9E0A2-3C4D-4E5F-9A1B-2C3D4E5F6789}.Debug|x64.ActiveCfg = Debug|x64
+		{B7F9E0A2-3C4D-4E5F-9A1B-2C3D4E5F6789}.Debug|x64.Build.0 = Debug|x64
+		{B7F9E0A2-3C4D-4E5F-9A1B-2C3D4E5F6789}.Release|x64.ActiveCfg = Release|x64
+		{B7F9E0A2-3C4D-4E5F-9A1B-2C3D4E5F6789}.Release|x64.Build.0 = Release|x64
+		{B7F9E0A2-3C4D-4E5F-9A1B-2C3D4E5F6789}.RelWithDebInfo|x64.ActiveCfg = RelWithDebInfo|x64
+		{B7F9E0A2-3C4D-4E5F-9A1B-2C3D4E5F6789}.RelWithDebInfo|x64.Build.0 = RelWithDebInfo|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

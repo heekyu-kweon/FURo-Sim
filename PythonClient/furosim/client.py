@@ -929,17 +929,6 @@ class VehicleClient:
         """
         return LidarData.from_msgpack(self.client.call('getLidarData', lidar_name, vehicle_name))
 
-    def getSonarData(self, sonar_name = '', vehicle_name = ''):
-        """
-        Args:
-            sonar_name (str, optional): Name of Sonar to get data from, specified in settings.json
-            vehicle_name (str, optional): Name of vehicle to which the sensor corresponds to
-
-        Returns:
-            SonarData:
-        """
-        return SonarData.from_msgpack(self.client.call('getSonarData', sonar_name, vehicle_name))
-
     def getGpuSonarData(self, sonar_name = '', vehicle_name = ''):
         """
         Args:
@@ -1730,6 +1719,67 @@ class AuvClient(VehicleClient, object):
         state_raw = self.client.call('getAuvState', vehicle_name)
         return AuvState.from_msgpack(state_raw)
 
+    def moveToPositionAsync(self, x, y, z, velocity, timeout_sec = 3e+38, yaw_mode = YawMode(), vehicle_name = ''):
+        """
+        Drive the AUV to a single NED waypoint and hold station there.
+
+        Args:
+            x, y, z (float): Target position, NED [m]
+            velocity (float): Surge speed cap [m/s]
+            timeout_sec (float, optional): Give up after this much sim time; the AUV then holds where it is
+            yaw_mode (YawMode, optional): is_rate=True (default) faces the direction of travel,
+                                          is_rate=False holds the absolute heading yaw_or_rate [deg]
+            vehicle_name (str, optional): Name of the vehicle
+
+        Returns:
+            msgpackrpc.future.Future: resolves to True on arrival, False on timeout/cancel
+        """
+        return self.client.call_async('moveToPosition', x, y, z, velocity, timeout_sec, yaw_mode, vehicle_name)
+
+    def moveOnPathAsync(self, path, velocity, timeout_sec = 3e+38, yaw_mode = YawMode(), vehicle_name = ''):
+        """
+        Follow a list of NED waypoints (line-of-sight guidance) and hold station at the last one.
+
+        Args:
+            path (list[Vector3r]): Waypoints, NED [m]
+            velocity (float): Surge speed cap [m/s]
+            timeout_sec (float, optional): Give up after this much sim time
+            yaw_mode (YawMode, optional): see moveToPositionAsync
+            vehicle_name (str, optional): Name of the vehicle
+
+        Returns:
+            msgpackrpc.future.Future: resolves to True on arrival, False on timeout/cancel
+        """
+        return self.client.call_async('moveOnPath', path, velocity, timeout_sec, yaw_mode, vehicle_name)
+
+    def moveToZAsync(self, z, velocity, timeout_sec = 3e+38, yaw_mode = YawMode(), vehicle_name = ''):
+        """
+        Change depth at the current horizontal position.
+
+        Args:
+            z (float): Target NED z [m] (positive down)
+            velocity (float): Speed cap [m/s]
+            timeout_sec (float, optional): Give up after this much sim time
+            yaw_mode (YawMode, optional): see moveToPositionAsync
+            vehicle_name (str, optional): Name of the vehicle
+
+        Returns:
+            msgpackrpc.future.Future: resolves to True on arrival, False on timeout/cancel
+        """
+        return self.client.call_async('moveToZ', z, velocity, timeout_sec, yaw_mode, vehicle_name)
+
+    def hoverAsync(self, vehicle_name = ''):
+        """
+        Hold the current position and heading (station keeping). Returns immediately.
+
+        Args:
+            vehicle_name (str, optional): Name of the vehicle
+
+        Returns:
+            msgpackrpc.future.Future
+        """
+        return self.client.call_async('hover', vehicle_name)
+
     def setOceanCurrent(self, vx_north, vy_east, vz_down, vehicle_name=''):
         """
         Set ocean current velocity in NED world frame.
@@ -1744,3 +1794,15 @@ class AuvClient(VehicleClient, object):
         self.client.call('setOceanCurrent',
                         [vx_north, vy_east, vz_down],
                         vehicle_name)
+
+    def getAuvControls(self, vehicle_name = ''):
+        """
+        Get the last commanded AUV controls.
+
+        Args:
+            vehicle_name (str, optional): Name of vehicle
+
+        Returns:
+            AuvControls:
+        """
+        return AuvControls.from_msgpack(self.client.call('getAuvControls', vehicle_name))

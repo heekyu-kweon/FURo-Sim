@@ -1,6 +1,7 @@
 {
   "SettingsVersion": 1.2,
   "SimMode": "Auv",
+  "ClockType": "UnrealClock",
   "Vehicles": {
     "AuvSimple": {
       "VehicleType": "AuvSimple",
@@ -23,6 +24,9 @@
           "RayleighNoiseScale": 0.05,
           "EnableRangeNoise": true,
           "RangeNoiseSigma": 0.005,
+          "EnableSpeckleMultiplicative": true,
+          "SpeckleShape": 25.0,
+          "SpeckleScale": 0.04,
           "DataFrame": "SensorLocalFrame",
           "MaxBounceRay": 1,
           "Port": {

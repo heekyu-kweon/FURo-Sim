@@ -227,6 +227,19 @@ void AirsimROSWrapper::create_ros_pubs_from_settings_json()
                 curr_vehicle_name + "/ocean_current",
                 1,
                 boost::bind(&AirsimROSWrapper::ocean_current_cb, this, _1, vehicle_ros->vehicle_name));
+
+            auv->move_to_position_srvr = nh_private_.advertiseService<furosim_ros_pkgs::MoveToPosition::Request, furosim_ros_pkgs::MoveToPosition::Response>(
+                curr_vehicle_name + "/move_to_position",
+                boost::bind(&AirsimROSWrapper::auv_move_to_position_srv_cb, this, _1, _2, vehicle_ros->vehicle_name));
+            auv->move_on_path_srvr = nh_private_.advertiseService<furosim_ros_pkgs::MoveOnPath::Request, furosim_ros_pkgs::MoveOnPath::Response>(
+                curr_vehicle_name + "/move_on_path",
+                boost::bind(&AirsimROSWrapper::auv_move_on_path_srv_cb, this, _1, _2, vehicle_ros->vehicle_name));
+            auv->move_to_z_srvr = nh_private_.advertiseService<furosim_ros_pkgs::MoveToZ::Request, furosim_ros_pkgs::MoveToZ::Response>(
+                curr_vehicle_name + "/move_to_z",
+                boost::bind(&AirsimROSWrapper::auv_move_to_z_srv_cb, this, _1, _2, vehicle_ros->vehicle_name));
+            auv->hover_srvr = nh_private_.advertiseService<furosim_ros_pkgs::Hover::Request, furosim_ros_pkgs::Hover::Response>(
+                curr_vehicle_name + "/hover",
+                boost::bind(&AirsimROSWrapper::auv_hover_srv_cb, this, _1, _2, vehicle_ros->vehicle_name));
         }
         else {
             auto car = static_cast<CarROS*>(vehicle_ros.get());
@@ -633,6 +646,85 @@ void AirsimROSWrapper::ocean_current_cb(const geometry_msgs::Vector3Stamped::Con
 {
     // Ocean current in NED world frame [m/s]
     get_auv_client()->setOceanCurrent(msg->vector.x, msg->vector.y, msg->vector.z, vehicle_name);
+}
+
+static void auv_finish_move(msr::airlib::AuvRpcLibClient* client, bool wait, bool& success, std::string& message)
+{
+    if (wait) {
+        client->waitOnLastTask(&success);
+        message = success ? "arrived" : "timed out or cancelled";
+    }
+    else {
+        success = true;
+        message = "command accepted";
+    }
+}
+
+static msr::airlib::YawMode auv_yaw_mode(bool yaw_fixed, double yaw_deg)
+{
+    return msr::airlib::YawMode(!yaw_fixed, static_cast<float>(yaw_deg));
+}
+
+static float auv_timeout(double timeout_sec)
+{
+    return timeout_sec > 0.0 ? static_cast<float>(timeout_sec) : msr::airlib::Utils::max<float>();
+}
+
+bool AirsimROSWrapper::auv_move_to_position_srv_cb(furosim_ros_pkgs::MoveToPosition::Request& request, furosim_ros_pkgs::MoveToPosition::Response& response, const std::string& vehicle_name)
+{
+    std::lock_guard<std::mutex> guard(drone_control_mutex_);
+    auto* client = get_auv_client();
+    client->moveToPositionAsync(request.x, request.y, request.z, request.velocity, auv_timeout(request.timeout_sec),
+                                auv_yaw_mode(request.yaw_fixed, request.yaw_deg), vehicle_name);
+    bool success = false;
+    std::string message;
+    auv_finish_move(client, request.waitOnLastTask, success, message);
+    response.success = success;
+    response.message = message;
+    return true;
+}
+
+bool AirsimROSWrapper::auv_move_on_path_srv_cb(furosim_ros_pkgs::MoveOnPath::Request& request, furosim_ros_pkgs::MoveOnPath::Response& response, const std::string& vehicle_name)
+{
+    std::lock_guard<std::mutex> guard(drone_control_mutex_);
+    std::vector<msr::airlib::Vector3r> path;
+    path.reserve(request.path.size());
+    for (const auto& p : request.path)
+        path.emplace_back(static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z));
+    auto* client = get_auv_client();
+    client->moveOnPathAsync(path, request.velocity, auv_timeout(request.timeout_sec),
+                            auv_yaw_mode(request.yaw_fixed, request.yaw_deg), vehicle_name);
+    bool success = false;
+    std::string message;
+    auv_finish_move(client, request.waitOnLastTask, success, message);
+    response.success = success;
+    response.message = message;
+    return true;
+}
+
+bool AirsimROSWrapper::auv_move_to_z_srv_cb(furosim_ros_pkgs::MoveToZ::Request& request, furosim_ros_pkgs::MoveToZ::Response& response, const std::string& vehicle_name)
+{
+    std::lock_guard<std::mutex> guard(drone_control_mutex_);
+    auto* client = get_auv_client();
+    client->moveToZAsync(request.z, request.velocity, auv_timeout(request.timeout_sec),
+                         auv_yaw_mode(request.yaw_fixed, request.yaw_deg), vehicle_name);
+    bool success = false;
+    std::string message;
+    auv_finish_move(client, request.waitOnLastTask, success, message);
+    response.success = success;
+    response.message = message;
+    return true;
+}
+
+bool AirsimROSWrapper::auv_hover_srv_cb(furosim_ros_pkgs::Hover::Request& request, furosim_ros_pkgs::Hover::Response& response, const std::string& vehicle_name)
+{
+    unused(request);
+    std::lock_guard<std::mutex> guard(drone_control_mutex_);
+    bool success = false;
+    get_auv_client()->hoverAsync(vehicle_name)->waitOnLastTask(&success);
+    response.success = success;
+    response.message = "station keeping";
+    return true;
 }
 
 msr::airlib::Pose AirsimROSWrapper::get_airlib_pose(const float& x, const float& y, const float& z, const msr::airlib::Quaternionr& airlib_quat) const
@@ -1546,9 +1638,14 @@ void AirsimROSWrapper::update_commands()
                                                  auv->force_cmd.torque_pitch,
                                                  auv->force_cmd.torque_yaw,
                                                  vehicle_ros->vehicle_name);
+                auv->force_cmd_streaming = true;
             }
-            else {
+            else if (auv->force_cmd_streaming) {
+                // Zero the wrench once when the force_cmd stream stops. Sending it every cycle would also
+                // cancel any waypoint/hover task started through the services (setAuvControls overrides the autopilot).
+                std::lock_guard<std::mutex> guard(drone_control_mutex_);
                 get_auv_client()->setAuvControls(0, 0, 0, 0, 0, 0, vehicle_ros->vehicle_name);
+                auv->force_cmd_streaming = false;
             }
             auv->has_force_cmd = false;
         }

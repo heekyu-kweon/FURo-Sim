@@ -15,8 +15,8 @@ vehicle_name = "AuvSimple"
 sonar_name = "GSonar"
 camera_name = sonar_name
 detection_image_type = furosim.ImageType.DepthPerspective
-mesh_name = "Cone*"
-use_shadow = False
+mesh_name = "bricks*"
+use_shadow = True
 shadow_margin_px = 2
 window_scale = 2
 

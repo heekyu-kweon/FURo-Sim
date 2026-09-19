@@ -26,7 +26,7 @@ STRICT_MODE_OFF
 #undef FLOAT
 #undef check
 #include "rpc/client.h"
-//TODO: HACK: UE4 defines macro with stupid names like "check" that conflicts with msgpack library
+// UE defines a "check" macro that conflicts with the msgpack library, so it is undefined around the rpclib headers
 #ifndef check
 #define check(expr) (static_cast<void>((expr)))
 #endif
@@ -46,22 +46,22 @@ __pragma(warning(disable : 4239))
 
         typedef msr::airlib_rpclib::AuvRpcLibAdaptors AuvRpcLibAdaptors;
 
+        struct AuvRpcLibClient::impl
+        {
+        public:
+            std::future<RPCLIB_MSGPACK::object_handle> last_future;
+        };
+
         AuvRpcLibClient::AuvRpcLibClient(const string& ip_address, uint16_t port, float timeout_sec)
             : RpcLibClientBase(ip_address, port, timeout_sec)
         {
+            pimpl_.reset(new impl());
         }
 
         AuvRpcLibClient::~AuvRpcLibClient()
         {
         }
 
-        // AuvRpcLibClient* AuvRpcLibClient::moveByVelocityAsync(float vx, float vy, float vz, float yaw, float duration,
-        //                                                       const std::string& vehicle_name)
-        // {
-        //     return static_cast<rpc::client*>(getClient())->async_call("moveByVelocity", vx, vy, vz, yaw, duration, vehicle_name).to();
-        // }
-
-        // void AuvRpcLibClient::setAuvControls(const AuvApiBase::AuvControls& controls, const std::string& vehicle_name)
         void AuvRpcLibClient::setAuvControls(float fx, float fy, float fz, float roll, float pitch, float yaw, const std::string& vehicle_name)
         {
             AuvApiBase::AuvControls controls(
@@ -85,6 +85,54 @@ __pragma(warning(disable : 4239))
             Vector3r current(vx_north, vy_east, vz_down);
             AuvRpcLibAdaptors::Vector3r conv_current(current);
             static_cast<rpc::client*>(getClient())->call("setOceanCurrent", conv_current, vehicle_name);
+        }
+
+        AuvRpcLibClient* AuvRpcLibClient::moveToPositionAsync(float x, float y, float z, float velocity, float timeout_sec,
+                                                              const YawMode& yaw_mode, const std::string& vehicle_name)
+        {
+            pimpl_->last_future = static_cast<rpc::client*>(getClient())->async_call("moveToPosition", x, y, z, velocity, timeout_sec, AuvRpcLibAdaptors::YawMode(yaw_mode), vehicle_name);
+            return this;
+        }
+
+        AuvRpcLibClient* AuvRpcLibClient::moveOnPathAsync(const vector<Vector3r>& path, float velocity, float timeout_sec,
+                                                          const YawMode& yaw_mode, const std::string& vehicle_name)
+        {
+            vector<AuvRpcLibAdaptors::Vector3r> conv_path;
+            AuvRpcLibAdaptors::from(path, conv_path);
+            pimpl_->last_future = static_cast<rpc::client*>(getClient())->async_call("moveOnPath", conv_path, velocity, timeout_sec, AuvRpcLibAdaptors::YawMode(yaw_mode), vehicle_name);
+            return this;
+        }
+
+        AuvRpcLibClient* AuvRpcLibClient::moveToZAsync(float z, float velocity, float timeout_sec,
+                                                       const YawMode& yaw_mode, const std::string& vehicle_name)
+        {
+            pimpl_->last_future = static_cast<rpc::client*>(getClient())->async_call("moveToZ", z, velocity, timeout_sec, AuvRpcLibAdaptors::YawMode(yaw_mode), vehicle_name);
+            return this;
+        }
+
+        AuvRpcLibClient* AuvRpcLibClient::hoverAsync(const std::string& vehicle_name)
+        {
+            pimpl_->last_future = static_cast<rpc::client*>(getClient())->async_call("hover", vehicle_name);
+            return this;
+        }
+
+        AuvRpcLibClient* AuvRpcLibClient::waitOnLastTask(bool* task_result, float timeout_sec)
+        {
+            bool result;
+            if (std::isnan(timeout_sec) || timeout_sec == Utils::max<float>())
+                result = pimpl_->last_future.get().as<bool>();
+            else {
+                auto future_status = pimpl_->last_future.wait_for(std::chrono::duration<double>(timeout_sec));
+                if (future_status == std::future_status::ready)
+                    result = pimpl_->last_future.get().as<bool>();
+                else
+                    result = false;
+            }
+
+            if (task_result)
+                *task_result = result;
+
+            return this;
         }
     }
 } //namespace

@@ -118,6 +118,12 @@ namespace airlib
             setOutput(output);
         }
 
+    public:
+        virtual Pose getRelativePose() const override
+        {
+            return params_.relative_pose;
+        }
+
     private:
         GpuSonarSimpleParams params_;
         vector<real_T> point_cloud_;

@@ -35,9 +35,12 @@ namespace airlib
         real_T update_frequency = 50; //Hz
         real_T startup_delay = 0; //sec
 
+        Pose relative_pose = Pose::zero();
+
         void initializeFromSettings(const AirSimSettings::MagnetometerSetting& settings)
         {
             const auto& json = settings.settings;
+            relative_pose = AirSimSettings::createPoseSetting(json);
             float noise = json.getFloat("NoiseSigma", noise_sigma.x());
             noise_sigma = Vector3r(noise, noise, noise);
             scale_factor = json.getFloat("ScaleFactor", scale_factor);

@@ -22,7 +22,7 @@ STRICT_MODE_OFF
 #undef FLOAT
 #undef check
 #include "rpc/server.h"
-//TODO: HACK: UE4 defines macro with stupid names like "check" that conflicts with msgpack library
+// UE defines a "check" macro that conflicts with the msgpack library, so it is undefined around the rpclib headers
 #ifndef check
 #define check(expr) (static_cast<void>((expr)))
 #endif
@@ -312,6 +312,8 @@ namespace airlib
             const auto& lidar_data = getVehicleApi(vehicle_name)->getLidarData(lidar_name);
             return RpcLibAdaptorsBase::LidarData(lidar_data);
         });
+
+
 
         pimpl_->server.bind("getGpuSonarData", [&](const std::string& sonar_name, const std::string& vehicle_name) -> RpcLibAdaptorsBase::GpuSonarData {
             const auto& sonar_data = getVehicleApi(vehicle_name)->getGpuSonarData(sonar_name);

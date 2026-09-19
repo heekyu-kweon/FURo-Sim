@@ -30,9 +30,13 @@ case $key in
         ;;
     --no-full-poly-car)
         downloadHighPolySuv=false
-        shift # past value
+        ;;
+    *)
+        echo "Unknown option: $key" >&2
+        exit 1
         ;;
 esac
+shift
 
 done
 
@@ -160,12 +164,12 @@ if [ ! -d "external/rpclib/rpclib-2.3.0" ]; then
     rm v2.3.0.zip
 fi
 
-# Download high-polycount SUV model
-if $downloadHighPolySuv; then
-    if [ ! -d "Unreal/Plugins/AirSim/Content/VehicleAdv" ]; then
-        mkdir -p "Unreal/Plugins/AirSim/Content/VehicleAdv"
+# Download high-polycount SUV model (only meaningful when the Unreal plugin source is present)
+if $downloadHighPolySuv && [ -d "Unreal/Plugins/FURoSim" ]; then
+    if [ ! -d "Unreal/Plugins/FURoSim/Content/VehicleAdv" ]; then
+        mkdir -p "Unreal/Plugins/FURoSim/Content/VehicleAdv"
     fi
-    if [ ! -d "Unreal/Plugins/AirSim/Content/VehicleAdv/SUV/v1.2.0" ]; then
+    if [ ! -d "Unreal/Plugins/FURoSim/Content/VehicleAdv/SUV/v1.2.0" ]; then
             echo "*********************************************************************************************"
             echo "Downloading high-poly car assets.... The download is ~37MB and can take some time."
             echo "To install without this assets, re-run setup.sh with the argument --no-full-poly-car"
@@ -177,10 +181,10 @@ if $downloadHighPolySuv; then
             mkdir -p "suv_download_tmp"
             cd suv_download_tmp
             wget  https://github.com/CodexLabsLLC/Colosseum/releases/download/v2.0.0-beta.0/car_assets.zip
-            if [ -d "../Unreal/Plugins/AirSim/Content/VehicleAdv/SUV" ]; then
-                rm -rf "../Unreal/Plugins/AirSim/Content/VehicleAdv/SUV"
+            if [ -d "../Unreal/Plugins/FURoSim/Content/VehicleAdv/SUV" ]; then
+                rm -rf "../Unreal/Plugins/FURoSim/Content/VehicleAdv/SUV"
             fi
-            unzip -q car_assets.zip -d ../Unreal/Plugins/AirSim/Content/VehicleAdv
+            unzip -q car_assets.zip -d ../Unreal/Plugins/FURoSim/Content/VehicleAdv
             cd ..
             rm -rf "suv_download_tmp"
     fi
@@ -207,5 +211,5 @@ popd >/dev/null
 set +x
 echo ""
 echo "************************************"
-echo "AirSim setup completed successfully!"
+echo "FURoSim setup completed successfully!"
 echo "************************************"

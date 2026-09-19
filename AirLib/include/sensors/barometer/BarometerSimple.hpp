@@ -99,6 +99,12 @@ namespace airlib
             return output;
         }
 
+    public:
+        virtual Pose getRelativePose() const override
+        {
+            return params_.relative_pose;
+        }
+
     private:
         BarometerSimpleParams params_;
 

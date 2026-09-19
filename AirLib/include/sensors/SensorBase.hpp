@@ -66,6 +66,11 @@ namespace airlib
             return name_;
         }
 
+        virtual Pose getRelativePose() const
+        {
+            return Pose::zero();
+        }
+
         virtual ~SensorBase() = default;
 
     private:

@@ -14,7 +14,7 @@ if "%VisualStudioVersion%" == "" (
     goto :buildfailed_nomsg
 )
 if "%VisualStudioVersion%" lss "17.0" (
-    call :printError, "Hello there! We just upgraded AirSim to Unreal Engine 4.27 and Visual Studio 2022. Here are few easy steps for upgrade so everything is new and shiny:  https://github.com/Microsoft/AirSim/blob/main/docs/unreal_upgrade.md"
+    call :printError, "Visual Studio 2022 (17.0 or newer) is required."
     goto :buildfailed_nomsg
 )
 ECHO(
@@ -45,6 +45,7 @@ IF NOT "%1"=="" (
     )
     GOTO :loop
 )
+set "buildModeName=%buildMode:"=%"
 echo buildMode = %buildMode%
 echo noFullPolyCar = %noFullPolyCar%
 ECHO(
@@ -74,14 +75,20 @@ chdir /d %ROOT_DIR%
 
 REM //---------- Check cmake version ----------
 CALL :printHeader, "Check cmake version"
+REM // fall back to the CMake bundled with Visual Studio ("C++ CMake tools for Windows" component) when none is on PATH
+where /q cmake
+if ERRORLEVEL 1 (
+  if exist "%VSINSTALLDIR%Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" set "PATH=%VSINSTALLDIR%Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;%PATH%"
+)
 CALL check_cmake.bat
 if ERRORLEVEL 1 (
-  CALL check_cmake.bat
-  if ERRORLEVEL 1 (
-    echo ERROR: cmake was not installed correctly, we tried.
-    goto :buildfailed
-  )
+  echo ERROR: cmake 3.14 or newer is required. Install it from https://cmake.org/download or add the "C++ CMake tools for Windows" component in the Visual Studio Installer.
+  goto :buildfailed
 )
+REM // CMake generator matching the Visual Studio this prompt belongs to (VS 2022 = 17, VS 2026 = 18)
+set "CMAKE_GENERATOR_NAME=Visual Studio 17 2022"
+if "%VisualStudioVersion:~0,2%"=="18" set "CMAKE_GENERATOR_NAME=Visual Studio 18 2026"
+echo cmake generator: %CMAKE_GENERATOR_NAME%
 ECHO(
 
 REM //---------- get rpclib ----------
@@ -122,7 +129,8 @@ REM //---------- Build rpclib ------------
 IF NOT EXIST external\rpclib\%RPC_VERSION_FOLDER%\build mkdir external\rpclib\%RPC_VERSION_FOLDER%\build
 cd external\rpclib\%RPC_VERSION_FOLDER%\build
 CALL :printHeader, "Configuring CMake rpclib"
-cmake -G"Visual Studio 17 2022" ..
+cmake -G "%CMAKE_GENERATOR_NAME%" -A x64 ..
+if ERRORLEVEL 1 goto :buildfailed
 ECHO(
 
 if %buildMode% == "" (
@@ -138,8 +146,8 @@ if %buildMode% == "" (
     cmake --build . --config RelWithDebInfo
     ECHO(
 ) else (
-    CALL :printHeader, "Building rpclib - Configuration = %buildMode%"
-    cmake --build . --config %buildMode%
+    CALL :printHeader, "Building rpclib - Configuration = %buildModeName%"
+    cmake --build . --config %buildModeName%
     ECHO(
 )
 
@@ -163,17 +171,18 @@ if %buildMode% == "" (
     @echo off
 ) else (
     @echo on
-    robocopy /MIR external\rpclib\%RPC_VERSION_FOLDER%\build\%buildMode% %RPCLIB_TARGET_LIB%\%buildMode%
+    robocopy /MIR external\rpclib\%RPC_VERSION_FOLDER%\build\%buildModeName% %RPCLIB_TARGET_LIB%\%buildModeName%
     @echo off
 )
 ECHO(   
 
 
-REM //---------- get High PolyCount SUV Car Model ------------
+REM //---------- get High PolyCount SUV Car Model (only when the Unreal plugin source is present) ------------
+IF NOT EXIST Unreal\Plugins\FURoSim goto :skip_suv
 CALL :printHeader, "Configure High Polycount SUV car model"
 
-IF NOT EXIST Unreal\Plugins\AirSim\Content\VehicleAdv mkdir Unreal\Plugins\AirSim\Content\VehicleAdv
-IF NOT EXIST Unreal\Plugins\AirSim\Content\VehicleAdv\SUV\v1.2.0 (
+IF NOT EXIST Unreal\Plugins\FURoSim\Content\VehicleAdv mkdir Unreal\Plugins\FURoSim\Content\VehicleAdv
+IF NOT EXIST Unreal\Plugins\FURoSim\Content\VehicleAdv\SUV\v1.2.0 (
     IF NOT DEFINED noFullPolyCar (
         REM //leave some blank lines because %powershell% shows download banner at top of console
         ECHO(   
@@ -192,17 +201,18 @@ IF NOT EXIST Unreal\Plugins\AirSim\Content\VehicleAdv\SUV\v1.2.0 (
             %powershell% -command "iwr https://github.com/CodexLabsLLC/Colosseum/releases/download/v2.0.0-beta.0/car_assets.zip -OutFile suv_download_tmp\car_assets.zip"
         )
         @echo off
-        rmdir /S /Q Unreal\Plugins\AirSim\Content\VehicleAdv\SUV
-        %powershell% -command "Expand-Archive -Path suv_download_tmp\car_assets.zip -DestinationPath Unreal\Plugins\AirSim\Content\VehicleAdv"
+        rmdir /S /Q Unreal\Plugins\FURoSim\Content\VehicleAdv\SUV
+        %powershell% -command "Expand-Archive -Path suv_download_tmp\car_assets.zip -DestinationPath Unreal\Plugins\FURoSim\Content\VehicleAdv"
         rmdir suv_download_tmp /q /s
         
         REM //Don't fail the build if the high-poly car is unable to be downloaded
         REM //Instead, just notify users that the gokart will be used.
-        IF NOT EXIST Unreal\Plugins\AirSim\Content\VehicleAdv\SUV ECHO Unable to download high-polycount SUV. Your AirSim build will use the default vehicle.
+        IF NOT EXIST Unreal\Plugins\FURoSim\Content\VehicleAdv\SUV ECHO Unable to download high-polycount SUV. Your AirSim build will use the default vehicle.
     ) else (
         ECHO Not downloading high-poly car asset. The default unreal vehicle will be used.
     )
 )
+:skip_suv
 ECHO(
 
 REM //---------- setup Eigen dependency for AirLib ----------
@@ -220,25 +230,25 @@ IF NOT EXIST AirLib\deps\eigen3 (
 IF NOT EXIST AirLib\deps\eigen3 goto :buildfailed
 ECHO(
 
-REM //---------- now we have all dependencies to compile AirSim.sln which will also compile MavLinkCom ----------
+REM //---------- now we have all dependencies to compile FURoSim.sln which will also compile MavLinkCom ----------
 if %buildMode% == "" (
-    CALL :printHeader, "Building AirSim.sln Configuration = Debug"
-    msbuild -maxcpucount:12 /p:Platform=x64 /p:Configuration=Debug AirSim.sln
+    CALL :printHeader, "Building FURoSim.sln Configuration = Debug"
+    msbuild -maxcpucount:12 /p:Platform=x64 /p:Configuration=Debug FURoSim.sln
     ECHO(   
     if ERRORLEVEL 1 goto :buildfailed
 
-    CALL :printHeader, "Building AirSim.sln Configuration = Release"
-    msbuild -maxcpucount:12 /p:Platform=x64 /p:Configuration=Release AirSim.sln 
+    CALL :printHeader, "Building FURoSim.sln Configuration = Release"
+    msbuild -maxcpucount:12 /p:Platform=x64 /p:Configuration=Release FURoSim.sln 
     ECHO(   
     if ERRORLEVEL 1 goto :buildfailed
 
-    CALL :printHeader, "Building AirSim.sln Configuration = RelWithDebInfo"
-    msbuild -maxcpucount:12 /p:Platform=x64 /p:Configuration=RelWithDebInfo AirSim.sln 
+    CALL :printHeader, "Building FURoSim.sln Configuration = RelWithDebInfo"
+    msbuild -maxcpucount:12 /p:Platform=x64 /p:Configuration=RelWithDebInfo FURoSim.sln 
     ECHO(   
     if ERRORLEVEL 1 goto :buildfailed
 ) else (
-    CALL :printHeader, "Building AirSim.sln Configuration = %buildMode%"
-    msbuild -maxcpucount:12 /p:Platform=x64 /p:Configuration=%buildMode% AirSim.sln
+    CALL :printHeader, "Building FURoSim.sln Configuration = %buildModeName%"
+    msbuild -maxcpucount:12 /p:Platform=x64 /p:Configuration=%buildModeName% FURoSim.sln
     ECHO(   
     if ERRORLEVEL 1 goto :buildfailed
 )
@@ -253,11 +263,12 @@ robocopy /MIR MavLinkCom\include %MAVLINK_TARGET_INCLUDE%
 robocopy /MIR MavLinkCom\lib %MAVLINK_TARGET_LIB%
 ECHO(
 
-REM //---------- all our output goes to Unreal/Plugin folder ----------
+REM //---------- copy AirLib into the Unreal plugin (only when the plugin source is present) ----------
+IF NOT EXIST Unreal\Plugins\FURoSim\Source goto :done
 CALL :printHeader, "Copy Airlib files into Unreal environment and plugin folder structure"
-if NOT exist Unreal\Plugins\AirSim\Source\AirLib mkdir Unreal\Plugins\AirSim\Source\AirLib
-robocopy /MIR AirLib Unreal\Plugins\AirSim\Source\AirLib  /XD temp *. /njh /njs /ndl /np
-copy /y AirSim.props Unreal\Plugins\AirSim\Source\AirLib
+if NOT exist Unreal\Plugins\FURoSim\Source\FURoSim\AirLib mkdir Unreal\Plugins\FURoSim\Source\FURoSim\AirLib
+robocopy /MIR AirLib Unreal\Plugins\FURoSim\Source\FURoSim\AirLib  /XD temp *. /njh /njs /ndl /np
+copy /y AirSim.props Unreal\Plugins\FURoSim\Source\FURoSim\AirLib
 ECHO( 
 
 REM //---------- update all environments ----------
@@ -268,7 +279,9 @@ FOR /D %%E IN (Unreal\Environments\*) DO (
     cd ..\..\..
 )
 
+:done
 REM //---------- done building ----------
+CALL :printHeader, "AirLib built: AirLib\lib, AirLib\deps (rpclib, MavLinkCom), HelloAuv\x64"
 exit /b 0
 
 :buildfailed

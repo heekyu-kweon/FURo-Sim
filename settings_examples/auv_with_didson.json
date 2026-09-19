@@ -1,6 +1,7 @@
 {
   "SettingsVersion": 1.2,
   "SimMode": "Auv",
+  "ClockType": "UnrealClock",
   "Vehicles": {
     "AuvSimple": {
       "VehicleType": "AuvSimple",
@@ -32,6 +33,9 @@
           "RangeNoiseSigma": 0.002,
           "EnableAzimuthAngleNoise": true,
           "AzimuthAngleNoiseSigma": 0.01,
+          "EnableSpeckleMultiplicative": true,
+          "SpeckleShape": 25.0,
+          "SpeckleScale": 0.04,
           "DataFrame": "SensorLocalFrame",
           "MaxBounceRay": 1,
           "X": 0.5, "Y": 0, "Z": 0,

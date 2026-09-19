@@ -48,9 +48,17 @@ namespace airlib
 
         real_T min_sample_time = 1 / 1000.0f; //internal IMU frequency
 
+        //Optional output rate cap in sim Hz. 0 = disabled (emit on every poll).
+        //Useful with UnrealClock to throttle IMU output below the natural Tick rate.
+        real_T update_frequency = 0;
+
+        Pose relative_pose = Pose::zero();
+
         void initializeFromSettings(const AirSimSettings::ImuSetting& settings)
         {
             const auto& json = settings.settings;
+            relative_pose = AirSimSettings::createPoseSetting(json);
+            update_frequency = json.getFloat("UpdateFrequency", 0.0f);
             float arw = json.getFloat("AngularRandomWalk", Utils::nan<float>());
             if (!std::isnan(arw)) {
                 gyro.arw = arw / sqrt(3600.0f) * M_PIf / 180; // //deg/sqrt(hour) converted to rad/sqrt(sec)

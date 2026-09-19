@@ -519,7 +519,7 @@ class CarControls(MsgpackMixin):
 
 class AuvControls(MsgpackMixin):
     force  = [0.0, 0.0, 0.0]  # [fx, fy, fz]    [N]
-    torque = [0.0, 0.0, 0.0]  # [roll, pitch, yaw] [N·m]
+    torque = [0.0, 0.0, 0.0]  # [roll, pitch, yaw] [N*m]
 
     attribute_order = [
         ('force',  list),
@@ -661,26 +661,6 @@ class LidarData(MsgpackMixin):
     attribute_order = [
         ('time_stamp', np.uint64),
         ('point_cloud', float),
-        ('pose', Pose),
-        ('segmentation', int)
-    ]
-
-
-class SonarData(MsgpackMixin):
-    time_stamp = np.uint64(0)
-    min_range = 0.0
-    max_range = 0.0
-    point_cloud = 0.0
-    sonar_raw_data = 0.0
-    pose = Pose()
-    segmentation = 0
-
-    attribute_order = [
-        ('time_stamp', np.uint64),
-        ('min_range', float),
-        ('max_range', float),
-        ('point_cloud', float),
-        ('sonar_raw_data', float),
         ('pose', Pose),
         ('segmentation', int)
     ]
@@ -854,6 +834,8 @@ class DvlData(MsgpackMixin):
     min_distance = 0.0
     max_distance = 0.0
     relative_pose = Pose()
+    beam_ranges = []
+    beam_valid = []
 
     attribute_order = [
         ('time_stamp', np.uint64),
@@ -863,7 +845,9 @@ class DvlData(MsgpackMixin):
         ('altitude', float),
         ('min_distance', float),
         ('max_distance', float),
-        ('relative_pose', Pose)
+        ('relative_pose', Pose),
+        ('beam_ranges', list),
+        ('beam_valid', list)
     ]
 
 
@@ -887,19 +871,31 @@ class Box3D(MsgpackMixin):
     ]
 
 
+class OrientedBox3D(MsgpackMixin):
+    pose = Pose()
+    half_extents = Vector3r()
+
+    attribute_order = [
+        ('pose', Pose),
+        ('half_extents', Vector3r)
+    ]
+
+
 class DetectionInfo(MsgpackMixin):
     name = ''
     geo_point = GeoPoint()
     box2D = Box2D()
     box3D = Box3D()
     relative_pose = Pose()
+    oriented_box3D = OrientedBox3D()
 
     attribute_order = [
         ('name', str),
         ('geo_point', GeoPoint),
         ('box2D', Box2D),
         ('box3D', Box3D),
-        ('relative_pose', Pose)
+        ('relative_pose', Pose),
+        ('oriented_box3D', OrientedBox3D)
     ]
 
 

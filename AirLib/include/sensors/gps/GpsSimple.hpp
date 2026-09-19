@@ -93,6 +93,12 @@ namespace airlib
             delay_line_.push_back(output);
         }
 
+    public:
+        virtual Pose getRelativePose() const override
+        {
+            return params_.relative_pose;
+        }
+
     private:
         typedef std::normal_distribution<> NormalDistribution;
 

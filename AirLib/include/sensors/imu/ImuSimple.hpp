@@ -7,6 +7,7 @@
 #include "common/Common.hpp"
 #include "ImuSimpleParams.hpp"
 #include "ImuBase.hpp"
+#include "common/FrequencyLimiter.hpp"
 
 namespace msr
 {
@@ -35,6 +36,10 @@ namespace airlib
             state_.gyroscope_bias = params_.gyro.turn_on_bias;
             state_.accelerometer_bias = params_.accel.turn_on_bias;
             gauss_dist.reset();
+
+            freq_limiter_.initialize(params_.update_frequency);
+            freq_limiter_.reset();
+
             updateOutput();
         }
 
@@ -42,7 +47,14 @@ namespace airlib
         {
             ImuBase::update();
 
-            updateOutput();
+            if (params_.update_frequency > 0) {
+                freq_limiter_.update();
+                if (freq_limiter_.isWaitComplete())
+                    updateOutput();
+            }
+            else {
+                updateOutput();
+            }
         }
         //*** End: UpdatableState implementation ***//
 
@@ -98,6 +110,12 @@ namespace airlib
             state_.accelerometer_bias += gauss_dist.next() * accel_sigma_bias;
         }
 
+    public:
+        virtual Pose getRelativePose() const override
+        {
+            return params_.relative_pose;
+        }
+
     private: //fields
         ImuSimpleParams params_;
         RandomVectorGaussianR gauss_dist = RandomVectorGaussianR(0, 1);
@@ -112,6 +130,7 @@ namespace airlib
         } state_;
 
         TTimePoint last_time_;
+        FrequencyLimiter freq_limiter_;
     };
 }
 } //namespace

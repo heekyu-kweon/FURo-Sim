@@ -50,9 +50,12 @@ namespace airlib
         real_T update_frequency = 50; //Hz
         real_T startup_delay = 0; //sec
 
+        Pose relative_pose = Pose::zero();
+
         void initializeFromSettings(const AirSimSettings::BarometerSetting& settings)
         {
             const auto& json = settings.settings;
+            relative_pose = AirSimSettings::createPoseSetting(json);
             pressure_factor_sigma = json.getFloat("PressureFactorSigma", pressure_factor_sigma);
             pressure_factor_tau = json.getFloat("PressureFactorTau", pressure_factor_tau);
             uncorrelated_noise_sigma = json.getFloat("UncorrelatedNoiseSigma", uncorrelated_noise_sigma);

@@ -18,6 +18,7 @@ This directory contains `settings.json` example files for FURo-Sim.
 |------------|----|
 | IMU | 2 |
 | GPS | 3 |
+| LiDAR | 6 |
 | FLS (GpuSonar) | 7 |
 | SSS (GpuSidescanSonar) | 8 |
 | DVL | 9 |

@@ -22,9 +22,12 @@ namespace airlib
         real_T update_frequency = 50; //Hz
         real_T startup_delay = 1; //sec
 
+        Pose relative_pose = Pose::zero();
+
         void initializeFromSettings(const AirSimSettings::GpsSetting& settings)
         {
             const auto& json = settings.settings;
+            relative_pose = AirSimSettings::createPoseSetting(json);
             eph_time_constant = json.getFloat("EPH_TimeConstant", eph_time_constant);
             epv_time_constant = json.getFloat("EPV_TimeConstant", epv_time_constant);
             eph_initial = json.getFloat("EphInitial", eph_initial);

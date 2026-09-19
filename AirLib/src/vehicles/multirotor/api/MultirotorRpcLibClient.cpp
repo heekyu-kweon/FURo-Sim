@@ -25,7 +25,7 @@ STRICT_MODE_OFF
 #undef FLOAT
 #undef check
 #include "rpc/client.h"
-//TODO: HACK: UE4 defines macro with stupid names like "check" that conflicts with msgpack library
+// UE defines a "check" macro that conflicts with the msgpack library, so it is undefined around the rpclib headers
 #ifndef check
 #define check(expr) (static_cast<void>((expr)))
 #endif

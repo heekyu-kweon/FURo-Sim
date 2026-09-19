@@ -21,6 +21,6 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ),
     install_requires=[
-          'msgpack-rpc-python', 'numpy', 'opencv-contrib-python'
+          'msgpack-rpc-python', 'tornado<5', 'numpy', 'opencv-contrib-python'
     ]
 )

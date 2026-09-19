@@ -300,6 +300,22 @@ namespace airlib
         }
     };
 
+    // Oriented box: pose = box center + orientation of the box's local axes, half_extents = half sizes along those axes
+    struct OrientedBox3D
+    {
+        Pose pose = Pose();
+        Vector3r half_extents = Vector3r::Zero();
+
+        OrientedBox3D()
+        {
+        }
+
+        OrientedBox3D(const Pose& pose_val, const Vector3r& half_extents_val)
+            : pose(pose_val), half_extents(half_extents_val)
+        {
+        }
+    };
+
     struct DetectionInfo
     {
         std::string name = "";
@@ -307,6 +323,7 @@ namespace airlib
         Box2D box2D = Box2D();
         Box3D box3D = Box3D();
         Pose relative_pose = Pose();
+        OrientedBox3D oriented_box3D = OrientedBox3D();
 
         DetectionInfo()
         {
@@ -471,6 +488,9 @@ namespace airlib
         real_T min_distance; //m
         real_T max_distance; //m
         Pose relative_pose;
+
+        std::vector<real_T> beam_ranges; //slant range per beam [m]
+        std::vector<int> beam_valid;     //1=valid, 0=no-return
 
         DvlData()
         {

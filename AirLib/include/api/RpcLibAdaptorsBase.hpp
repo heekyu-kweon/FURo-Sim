@@ -333,6 +333,33 @@ namespace airlib_rpclib
             }
         };
 
+        struct OrientedBox3D
+        {
+            Pose pose;
+            Vector3r half_extents;
+
+            MSGPACK_DEFINE_ARRAY(pose, half_extents);
+
+            OrientedBox3D()
+            {
+            }
+
+            OrientedBox3D(const msr::airlib::OrientedBox3D& s)
+            {
+                pose = s.pose;
+                half_extents = s.half_extents;
+            }
+
+            msr::airlib::OrientedBox3D to() const
+            {
+                msr::airlib::OrientedBox3D s;
+                s.pose = pose.to();
+                s.half_extents = half_extents.to();
+
+                return s;
+            }
+        };
+
         struct DetectionInfo
         {
             std::string name;
@@ -340,8 +367,9 @@ namespace airlib_rpclib
             Box2D box2D;
             Box3D box3D;
             Pose relative_pose;
+            OrientedBox3D oriented_box3D;
 
-            MSGPACK_DEFINE_ARRAY(name, geo_point, box2D, box3D, relative_pose);
+            MSGPACK_DEFINE_ARRAY(name, geo_point, box2D, box3D, relative_pose, oriented_box3D);
 
             DetectionInfo()
             {
@@ -354,6 +382,7 @@ namespace airlib_rpclib
                 box2D = d.box2D;
                 box3D = d.box3D;
                 relative_pose = d.relative_pose;
+                oriented_box3D = d.oriented_box3D;
             }
 
             msr::airlib::DetectionInfo to() const
@@ -364,6 +393,7 @@ namespace airlib_rpclib
                 d.box2D = box2D.to();
                 d.box3D = box3D.to();
                 d.relative_pose = relative_pose.to();
+                d.oriented_box3D = oriented_box3D.to();
 
                 return d;
             }
@@ -1022,8 +1052,10 @@ namespace airlib_rpclib
             msr::airlib::real_T min_distance; //m
             msr::airlib::real_T max_distance; //m
             Pose relative_pose;
+            std::vector<msr::airlib::real_T> beam_ranges;
+            std::vector<int> beam_valid;
 
-            MSGPACK_DEFINE_ARRAY(time_stamp, velocity, angular_velocity, estimated_pose, altitude, min_distance, max_distance, relative_pose);
+            MSGPACK_DEFINE_ARRAY(time_stamp, velocity, angular_velocity, estimated_pose, altitude, min_distance, max_distance, relative_pose, beam_ranges, beam_valid);
 
             DvlData()
             {
@@ -1039,6 +1071,8 @@ namespace airlib_rpclib
                 min_distance = s.min_distance;
                 max_distance = s.max_distance;
                 relative_pose = s.relative_pose;
+                beam_ranges = s.beam_ranges;
+                beam_valid = s.beam_valid;
             }
 
             msr::airlib::DvlData to() const
@@ -1053,6 +1087,8 @@ namespace airlib_rpclib
                 d.min_distance = min_distance;
                 d.max_distance = max_distance;
                 d.relative_pose = relative_pose.to();
+                d.beam_ranges = beam_ranges;
+                d.beam_valid = beam_valid;
 
                 return d;
             }

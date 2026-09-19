@@ -306,6 +306,11 @@ namespace airlib
             bool enable_collisions = true;
             bool is_fpv_vehicle = false;
             bool surface_constrained = true;  // ASV: water surface DOF lock
+            bool surface_constrained_auto = true;  // ASV: no explicit "SurfaceConstrained" -> decided from the pawn (buoyancy present => 6-DoF)
+            bool hull_buoyancy = true;             // ASV: hull-volume buoyancy in C++ instead of the fluid-flux Blueprint pontoons
+            bool draw_debug_buoyancy = false;      // ASV: "DrawDebugBuoyancy" draws submerged hull voxels, water samples, CoM/CoB
+            float mass = Utils::nan<float>();      // ASV: "Mass" [kg], nan = vehicle default
+            Vector3r center_of_gravity = VectorMath::nanVector();  // ASV: "CenterOfGravity" {X,Y,Z} [m, NED, from mesh origin], nan = vehicle default
 
             //nan means use player start
             Vector3r position = VectorMath::nanVector(); //in global NED
@@ -439,8 +444,10 @@ namespace airlib
 
         std::string clock_type = "";
         float clock_speed = 1.0f;
+        float engine_frame_rate = 0.0f; //0 = use UE default (variable). >0 = force GEngine FixedFrameRate.
         bool engine_sound = false;
         bool log_messages_visible = true;
+        bool draw_debug_sensor_pose = false;
         bool show_los_debug_lines_ = false;
         HomeGeoPoint origin_geopoint{ GeoPoint(47.641468, -122.140165, 0) }; //The geo-coordinate assigned to Unreal coordinate 0,0,0
         std::map<std::string, PawnPath> pawn_paths; //path for pawn blueprint
@@ -553,6 +560,15 @@ namespace airlib
             return Rotation(settings_json.getFloat("Yaw", default_rot.yaw),
                             settings_json.getFloat("Pitch", default_rot.pitch),
                             settings_json.getFloat("Roll", default_rot.roll));
+        }
+        static Pose createPoseSetting(const Settings& settings_json)
+        {
+            const Vector3r position = createVectorSetting(settings_json, Vector3r::Zero());
+            const Rotation rotation = createRotationSetting(settings_json, Rotation(0, 0, 0));
+            return Pose(position,
+                        VectorMath::toQuaternion(Utils::degreesToRadians(rotation.pitch),
+                                                 Utils::degreesToRadians(rotation.roll),
+                                                 Utils::degreesToRadians(rotation.yaw)));
         }
 
     private:
@@ -893,6 +909,13 @@ namespace airlib
                                                                        vehicle_setting->enable_collisions);
             vehicle_setting->is_fpv_vehicle = settings_json.getBool("IsFpvVehicle",
                                                                     vehicle_setting->is_fpv_vehicle);
+            vehicle_setting->surface_constrained_auto = !settings_json.hasKey("SurfaceConstrained");
+            vehicle_setting->hull_buoyancy = settings_json.getBool("HullBuoyancy", vehicle_setting->hull_buoyancy);
+            vehicle_setting->draw_debug_buoyancy = settings_json.getBool("DrawDebugBuoyancy", vehicle_setting->draw_debug_buoyancy);
+            vehicle_setting->mass = settings_json.getFloat("Mass", vehicle_setting->mass);
+            Settings cog_json;
+            if (settings_json.getChild("CenterOfGravity", cog_json))
+                vehicle_setting->center_of_gravity = createVectorSetting(cog_json, VectorMath::nanVector());
             vehicle_setting->surface_constrained = settings_json.getBool("SurfaceConstrained",
                                                                          vehicle_setting->surface_constrained);
 
@@ -1211,6 +1234,8 @@ namespace airlib
                         if (sensor_child.getChild("Port", port_child)) {
                             port_setting.position = createVectorSetting(port_child, port_setting.position);
                             port_setting.rotation = createRotationSetting(port_child, port_setting.rotation);
+                        } else {
+                            port_setting.rotation.yaw = -90;
                         }
                         cameras[key + "Port"] = port_setting;
 
@@ -1219,6 +1244,8 @@ namespace airlib
                         if (sensor_child.getChild("Starboard", starboard_child)) {
                             starboard_setting.position = createVectorSetting(starboard_child, starboard_setting.position);
                             starboard_setting.rotation = createRotationSetting(starboard_child, starboard_setting.rotation);
+                        } else {
+                            starboard_setting.rotation.yaw = +90;
                         }
                         cameras[key + "Starboard"] = starboard_setting;
                     }
@@ -1320,6 +1347,7 @@ namespace airlib
             speed_unit_factor = settings_json.getFloat("SpeedUnitFactor", 1.0f);
             speed_unit_label = settings_json.getString("SpeedUnitLabel", "m\\s");
             log_messages_visible = settings_json.getBool("LogMessagesVisible", true);
+            draw_debug_sensor_pose = settings_json.getBool("DrawDebugSensorPose", false);
             show_los_debug_lines_ = settings_json.getBool("ShowLosDebugLines", false);
 
             { //load origin geopoint
@@ -1367,6 +1395,9 @@ namespace airlib
             if (settings_json.getChild("CameraDefaults", child_json)) {
                 camera_defaults = createCameraSetting(child_json, camera_defaults);
             }
+            if (std::isnan(camera_defaults.rotation.pitch)) camera_defaults.rotation.pitch = 0;
+            if (std::isnan(camera_defaults.rotation.roll))  camera_defaults.rotation.roll  = 0;
+            if (std::isnan(camera_defaults.rotation.yaw))   camera_defaults.rotation.yaw   = 0;
         }
         static void loadCameraDirectorSetting(const Settings& settings_json,
                                               CameraDirectorSetting& camera_director, const std::string& simmode_name)
@@ -1404,7 +1435,7 @@ namespace airlib
 
             if (clock_type == "") {
                 //default value
-                clock_type = "ScalableClock";
+                clock_type = "UnrealClock";
 
                 //override if multirotor simmode with simple_flight
                 if (simmode_name == kSimModeTypeMultirotor) {
@@ -1424,6 +1455,7 @@ namespace airlib
             }
 
             clock_speed = settings_json.getFloat("ClockSpeed", 1.0f);
+            engine_frame_rate = settings_json.getFloat("EngineFrameRate", 0.0f);
         }
 
         static std::shared_ptr<SensorSetting> createSensorSetting(
@@ -1490,8 +1522,8 @@ namespace airlib
                                        std::map<std::string, std::shared_ptr<SensorSetting>>& sensor_defaults)
 
         {
-            // NOTE: Increase type if number of sensors goes above 8
-            uint8_t present_sensors_bitmask = 0;
+            // NOTE: Increase type if number of sensors goes above 32
+            uint32_t present_sensors_bitmask = 0;
 
             msr::airlib::Settings sensors_child;
             if (settings_json.getChild(collectionName, sensors_child)) {

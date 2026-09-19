@@ -27,6 +27,7 @@ namespace airlib
             params_.initializeFromSettings(setting);
 
             gauss_altitude = RandomGeneratorGausianR(0.0f, params_.alti.uncorrelated_noise_sigma);
+            gauss_depth = RandomGeneratorGausianR(0.0f, params_.depth_aiding_sigma);
             gauss_vrw = RandomVectorGaussianR(0.0f, params_.vel.vrw);
             //correlated_noise_.initialize(params_.correlated_noise_tau, params_.correlated_noise_sigma, 0.0f);
 
@@ -45,6 +46,7 @@ namespace airlib
 
             //correlated_noise_.reset();
             gauss_altitude.reset();
+            gauss_depth.reset();
             gauss_vrw.reset();
             gauss_dist.reset();
             gauss_.reset();
@@ -84,6 +86,7 @@ namespace airlib
 
     protected:
         virtual real_T getRayLength(const Pose& pose) = 0;
+        virtual void postprocessBeamData(DvlData& /*output*/, const Pose& /*sensor_world_pose*/) {}
 
     private: //methods
         DvlData getOutputInternal()
@@ -92,7 +95,8 @@ namespace airlib
             const GroundTruth& ground_truth = getGroundTruth();
 
             //order of Pose addition is important here because it also adds quaternions which is not commutative!
-            auto altitude = getRayLength(params_.alti.relative_pose + ground_truth.kinematics->pose);
+            const Pose sensor_world_pose = params_.alti.relative_pose + ground_truth.kinematics->pose;
+            auto altitude = getRayLength(sensor_world_pose);
 
             //add noise in altitude (about 0.2m sigma)
             altitude += gauss_altitude.next();
@@ -129,9 +133,15 @@ namespace airlib
 
             estimated_pose.position += estimated_pose.orientation * output.velocity * dt_;
 
+            //pressure-depth aiding: real AUVs bound depth with a cm-accurate pressure sensor, never
+            //dead-reckon z from DVL velocity. gt z = pressure depth in estimated_pose's NED frame + noise.
+            estimated_pose.position.z() = ground_truth.kinematics->pose.position.z() + gauss_depth.next();
+
             output.estimated_pose = estimated_pose;
 
             output.time_stamp = clock()->nowNanos();
+
+            postprocessBeamData(output, sensor_world_pose);
 
             return output;
         }
@@ -166,10 +176,13 @@ namespace airlib
                                                                0,
                                                                0.99 * yaw);
 
+            //gravity-referenced AUV: only yaw/heading drifts, pitch/roll stay level (accelerometer).
+            //Injecting gyro pitch/roll bias here leaked horizontal velocity into the dead-reckoned z.
+            const real_T bias_dt = static_cast<real_T>(dt_);
             state_.orientation_bias = state_.orientation_bias * 
-                                        VectorMath::toQuaternion(state_.gyroscope_bias.y(),//pitch
-                                                                 state_.gyroscope_bias.x(),//roll
-                                                                 state_.gyroscope_bias.z());//yaw
+                                        VectorMath::toQuaternion(0,//pitch: gravity-referenced, no drift
+                                                                 0,//roll: gravity-referenced, no drift
+                                                                 state_.gyroscope_bias.z() * bias_dt);//yaw
 
             state_.orientation_bias = state_.orientation_bias * 
                                         VectorMath::toQuaternion(0,//pitch
@@ -184,11 +197,18 @@ namespace airlib
             state_.gyroscope_bias += gauss_dist.next() * gyro_sigma_bias;
         }
 
+    public:
+        virtual Pose getRelativePose() const override
+        {
+            return params_.alti.relative_pose;
+        }
+
     private:
         DvlSimpleParams params_;
         RandomVectorGaussianR gauss_dist = RandomVectorGaussianR(0, 1);
         RandomVectorGaussianR gauss_vrw;
         RandomGeneratorGausianR gauss_altitude;
+        RandomGeneratorGausianR gauss_depth;
         RandomGeneratorGausianR gauss_ = RandomGeneratorGausianR(0.0f, 1);
 
         //cached calculated values

@@ -8,7 +8,7 @@
 
 STRICT_MODE_OFF
 // this json library is not strict clean
-//TODO: HACK!! below are added temporariliy because something is defining min, max macros
+// engine headers define min/max macros that break the STL usage below
 //#undef max
 #undef min
 #include "common_utils/json.hpp"
@@ -181,6 +181,14 @@ namespace airlib
             else {
                 return defaultValue;
             }
+        }
+
+        float getFloat(size_t index, float defaultValue) const
+        {
+            if (doc_.size() > index) {
+                return doc_[index].get<float>();
+            }
+            return defaultValue;
         }
 
         bool getBool(const std::string& name, bool defaultValue) const

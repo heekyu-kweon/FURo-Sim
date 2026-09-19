@@ -69,6 +69,10 @@ add_service_files(
   LandGroup.srv
   Reset.srv
   SetLocalPosition.srv
+  MoveToPosition.srv
+  MoveOnPath.srv
+  MoveToZ.srv
+  Hover.srv
 )
 
 generate_messages(

@@ -1,0 +1,4 @@
+# AUV: hold the current position and heading until the next command (AuvClient.hoverAsync).
+---
+bool success
+string message

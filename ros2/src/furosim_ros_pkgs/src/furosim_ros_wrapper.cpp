@@ -1,6 +1,10 @@
 #include <furosim_ros_wrapper.h>
 #include "common/AirSimSettings.hpp"
+#if __has_include(<tf2_sensor_msgs/tf2_sensor_msgs.hpp>)
+#include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
+#else
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
+#endif
 
 using namespace std::placeholders;
 
@@ -195,6 +199,18 @@ void AirsimROSWrapper::create_ros_pubs_from_settings_json()
 
             std::function<void(const geometry_msgs::msg::Vector3Stamped::SharedPtr)> fcn_ocean_current_sub = std::bind(&AirsimROSWrapper::ocean_current_cb, this, _1, vehicle_ros->vehicle_name_);
             auv->ocean_current_sub_ = nh_->create_subscription<geometry_msgs::msg::Vector3Stamped>(topic_prefix + "/ocean_current", 1, fcn_ocean_current_sub);
+
+            std::function<bool(std::shared_ptr<furosim_interfaces::srv::MoveToPosition::Request>, std::shared_ptr<furosim_interfaces::srv::MoveToPosition::Response>)> fcn_move_to_position = std::bind(&AirsimROSWrapper::auv_move_to_position_srv_cb, this, _1, _2, vehicle_ros->vehicle_name_);
+            auv->move_to_position_srvr_ = nh_->create_service<furosim_interfaces::srv::MoveToPosition>(topic_prefix + "/move_to_position", fcn_move_to_position);
+
+            std::function<bool(std::shared_ptr<furosim_interfaces::srv::MoveOnPath::Request>, std::shared_ptr<furosim_interfaces::srv::MoveOnPath::Response>)> fcn_move_on_path = std::bind(&AirsimROSWrapper::auv_move_on_path_srv_cb, this, _1, _2, vehicle_ros->vehicle_name_);
+            auv->move_on_path_srvr_ = nh_->create_service<furosim_interfaces::srv::MoveOnPath>(topic_prefix + "/move_on_path", fcn_move_on_path);
+
+            std::function<bool(std::shared_ptr<furosim_interfaces::srv::MoveToZ::Request>, std::shared_ptr<furosim_interfaces::srv::MoveToZ::Response>)> fcn_move_to_z = std::bind(&AirsimROSWrapper::auv_move_to_z_srv_cb, this, _1, _2, vehicle_ros->vehicle_name_);
+            auv->move_to_z_srvr_ = nh_->create_service<furosim_interfaces::srv::MoveToZ>(topic_prefix + "/move_to_z", fcn_move_to_z);
+
+            std::function<bool(std::shared_ptr<furosim_interfaces::srv::Hover::Request>, std::shared_ptr<furosim_interfaces::srv::Hover::Response>)> fcn_hover = std::bind(&AirsimROSWrapper::auv_hover_srv_cb, this, _1, _2, vehicle_ros->vehicle_name_);
+            auv->hover_srvr_ = nh_->create_service<furosim_interfaces::srv::Hover>(topic_prefix + "/hover", fcn_hover);
         }
         else {
             auto car = static_cast<CarROS*>(vehicle_ros.get());
@@ -562,6 +578,71 @@ void AirsimROSWrapper::ocean_current_cb(const geometry_msgs::msg::Vector3Stamped
 {
     std::lock_guard<std::mutex> guard(control_mutex_);
     get_auv_client()->setOceanCurrent(msg->vector.x, msg->vector.y, msg->vector.z, vehicle_name);
+}
+
+static void auv_finish_move(msr::airlib::AuvRpcLibClient* client, bool wait, bool& success, std::string& message)
+{
+    if (wait) {
+        client->waitOnLastTask(&success);
+        message = success ? "arrived" : "timed out or cancelled";
+    }
+    else {
+        success = true;
+        message = "command accepted";
+    }
+}
+
+static msr::airlib::YawMode auv_yaw_mode(bool yaw_fixed, double yaw_deg)
+{
+    return msr::airlib::YawMode(!yaw_fixed, static_cast<float>(yaw_deg));
+}
+
+static float auv_timeout(double timeout_sec)
+{
+    return timeout_sec > 0.0 ? static_cast<float>(timeout_sec) : msr::airlib::Utils::max<float>();
+}
+
+bool AirsimROSWrapper::auv_move_to_position_srv_cb(const std::shared_ptr<furosim_interfaces::srv::MoveToPosition::Request> request, const std::shared_ptr<furosim_interfaces::srv::MoveToPosition::Response> response, const std::string& vehicle_name)
+{
+    std::lock_guard<std::mutex> guard(control_mutex_);
+    auto* client = get_auv_client();
+    client->moveToPositionAsync(request->x, request->y, request->z, request->velocity, auv_timeout(request->timeout_sec),
+                                auv_yaw_mode(request->yaw_fixed, request->yaw_deg), vehicle_name);
+    auv_finish_move(client, request->wait_on_last_task, response->success, response->message);
+    return true;
+}
+
+bool AirsimROSWrapper::auv_move_on_path_srv_cb(const std::shared_ptr<furosim_interfaces::srv::MoveOnPath::Request> request, const std::shared_ptr<furosim_interfaces::srv::MoveOnPath::Response> response, const std::string& vehicle_name)
+{
+    std::lock_guard<std::mutex> guard(control_mutex_);
+    std::vector<msr::airlib::Vector3r> path;
+    path.reserve(request->path.size());
+    for (const auto& p : request->path)
+        path.emplace_back(static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z));
+    auto* client = get_auv_client();
+    client->moveOnPathAsync(path, request->velocity, auv_timeout(request->timeout_sec),
+                            auv_yaw_mode(request->yaw_fixed, request->yaw_deg), vehicle_name);
+    auv_finish_move(client, request->wait_on_last_task, response->success, response->message);
+    return true;
+}
+
+bool AirsimROSWrapper::auv_move_to_z_srv_cb(const std::shared_ptr<furosim_interfaces::srv::MoveToZ::Request> request, const std::shared_ptr<furosim_interfaces::srv::MoveToZ::Response> response, const std::string& vehicle_name)
+{
+    std::lock_guard<std::mutex> guard(control_mutex_);
+    auto* client = get_auv_client();
+    client->moveToZAsync(request->z, request->velocity, auv_timeout(request->timeout_sec),
+                         auv_yaw_mode(request->yaw_fixed, request->yaw_deg), vehicle_name);
+    auv_finish_move(client, request->wait_on_last_task, response->success, response->message);
+    return true;
+}
+
+bool AirsimROSWrapper::auv_hover_srv_cb(const std::shared_ptr<furosim_interfaces::srv::Hover::Request> request, const std::shared_ptr<furosim_interfaces::srv::Hover::Response> response, const std::string& vehicle_name)
+{
+    unused(request);
+    std::lock_guard<std::mutex> guard(control_mutex_);
+    get_auv_client()->hoverAsync(vehicle_name)->waitOnLastTask(&response->success);
+    response->message = "station keeping";
+    return true;
 }
 
 msr::airlib::AuvRpcLibClient* AirsimROSWrapper::get_auv_client()
@@ -1288,9 +1369,14 @@ void AirsimROSWrapper::update_commands()
                                                  auv->force_cmd_.torque_pitch,
                                                  auv->force_cmd_.torque_yaw,
                                                  vehicle_ros->vehicle_name_);
+                auv->force_cmd_streaming_ = true;
             }
-            else {
+            else if (auv->force_cmd_streaming_) {
+                // Zero the wrench once when the force_cmd stream stops. Sending it every cycle would also
+                // cancel any waypoint/hover task started through the services (setAuvControls overrides the autopilot).
+                std::lock_guard<std::mutex> guard(control_mutex_);
                 get_auv_client()->setAuvControls(0, 0, 0, 0, 0, 0, vehicle_ros->vehicle_name_);
+                auv->force_cmd_streaming_ = false;
             }
             auv->has_force_cmd_ = false;
         }

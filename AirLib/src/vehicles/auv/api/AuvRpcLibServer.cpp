@@ -22,7 +22,7 @@ STRICT_MODE_OFF
 #undef FLOAT
 #undef check
 #include "rpc/server.h"
-//TODO: HACK: UE4 defines macro with stupid names like "check" that conflicts with msgpack library
+// UE defines a "check" macro that conflicts with the msgpack library, so it is undefined around the rpclib headers
 #ifndef check
 #define check(expr) (static_cast<void>((expr)))
 #endif
@@ -55,6 +55,21 @@ namespace airlib
 
         (static_cast<rpc::server*>(getServer()))->bind("setOceanCurrent", [&](const AuvRpcLibAdaptors::Vector3r& current, const std::string& vehicle_name) -> void {
             getVehicleApi(vehicle_name)->setOceanCurrent(current.to());
+        });
+
+        (static_cast<rpc::server*>(getServer()))->bind("moveToPosition", [&](float x, float y, float z, float velocity, float timeout_sec, const AuvRpcLibAdaptors::YawMode& yaw_mode, const std::string& vehicle_name) -> bool {
+            return getVehicleApi(vehicle_name)->moveToPosition(x, y, z, velocity, timeout_sec, yaw_mode.to());
+        });
+        (static_cast<rpc::server*>(getServer()))->bind("moveOnPath", [&](const std::vector<AuvRpcLibAdaptors::Vector3r>& path, float velocity, float timeout_sec, const AuvRpcLibAdaptors::YawMode& yaw_mode, const std::string& vehicle_name) -> bool {
+            vector<Vector3r> conv_path;
+            AuvRpcLibAdaptors::to(path, conv_path);
+            return getVehicleApi(vehicle_name)->moveOnPath(conv_path, velocity, timeout_sec, yaw_mode.to());
+        });
+        (static_cast<rpc::server*>(getServer()))->bind("moveToZ", [&](float z, float velocity, float timeout_sec, const AuvRpcLibAdaptors::YawMode& yaw_mode, const std::string& vehicle_name) -> bool {
+            return getVehicleApi(vehicle_name)->moveToZ(z, velocity, timeout_sec, yaw_mode.to());
+        });
+        (static_cast<rpc::server*>(getServer()))->bind("hover", [&](const std::string& vehicle_name) -> bool {
+            return getVehicleApi(vehicle_name)->hover();
         });
     }
 

@@ -1,4 +1,8 @@
+#if __has_include(<tf2_geometry_msgs/tf2_geometry_msgs.hpp>)
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#else
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#endif
 namespace utils
 {
 inline double get_yaw_from_quat_msg(const geometry_msgs::msg::Quaternion& quat_msg)
